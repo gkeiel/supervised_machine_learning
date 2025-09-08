@@ -2,11 +2,15 @@ import time_series_prediction_functions as tspr
 
 
 def main():
-    # generate time series data
-    data = tspr.time_series()    
+    # number of samples and model order
+    n   = 500
+    n_a = 2
 
-    # prediction from AR model
-    y_pred_ar = tspr.arx_model(data)
+    # obtain time series data
+    data = tspr.time_series(n)    
+
+    # prediction from ARIMA model
+    y_pred_ar = tspr.arima_model(data, n, n_a)
 
     # prediction from decision tree
     y_pred_tree, y_test, split_idx = tspr.decision_tree(data)

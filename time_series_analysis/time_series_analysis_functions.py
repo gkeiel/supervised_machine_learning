@@ -4,27 +4,26 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import mean_squared_error
-from statsmodels.tsa.ar_model import AutoReg
+from statsmodels.tsa.arima.model import ARIMA
 
 
-def time_series():
+def time_series(n):
     # generate time series data with an exogenous input
     np.random.seed(0)
-    n = 200
     t = np.arange(n)
     u = np.sin(0.2*t) + np.random.normal(scale=0.2, size=n)
     y = np.zeros(n)
     for k in range(2, n):
         y[k] = 0.6*y[k-1] -0.3*y[k-2] +0.5*u[k-1] +np.random.normal(scale=0.1)
 
-    data = pd.DataFrame({'y': y, 'u': u, 't': t})
+    data = pd.DataFrame({'y':y, 'u':u, 't':t})
     return data
 
-def arx_model(data):
+
+def arima_model(data, n, n_a):
     # AR model using AutoReg
-    n = 200
-    ar_model  = AutoReg(data['y'], lags=2).fit()
-    y_pred_ar = ar_model.predict(start=2, end=n-1) # y_ar
+    ar_model  = AutoReg(data['y'], lags=n_a).fit()
+    y_pred_ar = ar_model.predict(start=n_a, end=n-1)
     return y_pred_ar
 
 
