@@ -21,8 +21,8 @@ def time_series(n):
 
 
 def arima_model(data, n, n_a):
-    # AR model using AutoReg
-    ar_model  = AutoReg(data['y'], lags=n_a).fit()
+    # ARIMA model
+    ar_model  = ARIMA(data['y'], order=(n_a,0,0)).fit()
     y_pred_ar = ar_model.predict(start=n_a, end=n-1)
     return y_pred_ar
 

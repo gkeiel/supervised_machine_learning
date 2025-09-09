@@ -1,39 +1,25 @@
-import yfinance as yf
-import pandas as pd
-import matplotlib.pyplot as plt
+import time_series_forecasting_functions as tspr
 
 
 def main():
-    # collect data from Yahoo Finance
-    ticker = "PETR4.SA"
-    df = yf.download(ticker, start="2024-01-01", end="2025-09-05")
-    df = df[["Close"]]
+    # number of samples and model order
+    n   = 500
+    n_a = 2
 
-    # calculate indicators
-    df["SMA20"] = df["Close"].rolling(window=10).mean()  # short MA
-    df["SMA50"] = df["Close"].rolling(window=20).mean()  # long MA
+    # obtain time series data
+    data = tspr.time_series(n)    
 
-    # generate signals
-    df["Signal"] = 0
-    df.loc[df["SMA20"] > df["SMA50"], "Signal"] = 1   # buy
-    df.loc[df["SMA20"] < df["SMA50"], "Signal"] = -1  # sell
+    # prediction from ARIMA model
+    y_pred_ar = tspr.arima_model(data, n, n_a)
 
-    # simulate execution (backtest)
-    df["Position"] = df["Signal"].shift(1)
-    df["Return"] = df["Close"].pct_change()
-    df["Strategy"] = df["Position"] * df["Return"]
+    # prediction from decision tree
+    y_pred_tree, y_test, split_idx = tspr.decision_tree(data)
 
-    # compare buy & hold vs strategy
-    df["Cumulative_Market"] = (1 + df["Return"]).cumprod()
-    df["Cumulative_Strategy"] = (1 + df["Strategy"]).cumprod()
+    # metrics
+    mse_ar, mse_tree = tspr.metrics(y_pred_ar, y_pred_tree, data['y'], y_test)
 
-    # plot result
-    plt.figure(figsize=(12,6))
-    plt.plot(df.index, df["Cumulative_Market"], label="Buy & Hold")
-    plt.plot(df.index, df["Cumulative_Strategy"], label="Strategy")
-    plt.legend()
-    plt.title(f"Backtest {ticker} - Cruzamento de Médias")
-    plt.show()
+    # plot
+    tspr.plot_res(data['y'], data['t'], y_pred_ar, y_pred_tree, mse_ar, mse_tree, split_idx)
 
 
 if __name__ == "__main__":
