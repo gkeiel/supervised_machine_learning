@@ -36,15 +36,19 @@ def sma(series:pd.Series, short:int, long:int) -> tuple[pd.Series, pd.Series]:
             series.rolling(window=long).mean())
 
 
+def wma(series:pd.Series, short:int, long:int) -> tuple[pd.Series, pd.Series]:
+    # weighted moving average (WMA)
+    w_s = pd.Series(range(1, short+1), dtype=float)
+    w_l = pd.Series(range(1, long+1), dtype=float)
+    series_s = series.rolling(window=short).apply(lambda x: (x*w_s).sum()/w_s.sum(), raw=True)
+    series_l = series.rolling(window=long).apply(lambda x: (x*w_l).sum()/w_l.sum(), raw=True)
+    return (series_s, series_l)
+
+
 def ema(series:pd.Series, short:int, long:int) -> tuple[pd.Series, pd.Series]:
     # exponential moving average (EMA)
     return (series.ewm(span=short, adjust=False).mean(),
             series.ewm(span=long, adjust=False).mean())
-
-
-# def wma(series: pd.Series, span:int) -> pd.Series:
-    # exponential moving average (EMA)
-    # return series.ewm(span=span, adjust=False).mean()
 
 
 def run_strategy(df):
@@ -59,14 +63,12 @@ def run_strategy(df):
 
     # simulate execution (backtest)
     df["Position"] = df["Signal"].shift(1)                      # simulate position (using previous sample)
-    df["Trade"] = df["Position"].diff().abs()                   # simulate trade
     df["Return"] = df["Close"].pct_change()                     # asset percentage variation (in relation to previous sample)
     df["Strategy"] = df["Position"]*df["Return"]                # return of the strategy
     
     # compare buy & hold vs current strategy
     df["Cumulative_Market"] = (1 +df["Return"]).cumprod()       # cumulative return buy & hold strategy
     df["Cumulative_Strategy"] = (1 +df["Strategy"]).cumprod()   # cumulative return current strategy
-    df["Cumulative_Trades"] = df["Trade"].cumsum()              # cumulative number of trades
     return df
 
 

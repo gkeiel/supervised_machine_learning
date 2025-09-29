@@ -46,7 +46,7 @@ def main():
         label = f"{ticker}_{ind_t}_{ind_s}_{ind_l}"
         pro_data[ticker][label] = df.copy()
         res_data[ticker][label] = {
-            "indicator": ind_t,
+            "Indicator": ind_t,
             "MA_Short": ind_s,
             "MA_Long": ind_l,
             "Return_Market": df["Cumulative_Market"].iloc[-1],
