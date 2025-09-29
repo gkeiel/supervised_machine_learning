@@ -16,34 +16,43 @@ def main():
     res_data = {}
 
     # import lists of parameters:
-    tickers    = tsf.load_tickers("tickers.txt")
+    tickers    = ["PETR4.SA"]
     indicators = tsf.load_indicators("indicators.txt")
-
+    
     # download data and run backtest
-    for ticker, (ma_s, ma_l) in itertools.product(tickers, indicators):
+    for ticker, (ind_t, ind_s, ind_l) in itertools.product(tickers, indicators):
 
         # download data (only once)
         if ticker not in raw_data:
             raw_data[ticker] = tsf.download_data(ticker, start, end)
         df = raw_data[ticker]
 
+        # calculate indicator
+        if ind_t == "SMA":
+            df["Short"], df["Long"] = tsf.sma( df["Close"], ind_s, ind_l)
+        elif ind_t == "EMA":
+            df["Short"], df["Long"] = tsf.ema( df["Close"], ind_s, ind_l)
+        elif ind_t == "WMA":
+            df["Short"], df["Long"] = tsf.wma( df["Close"], ind_s, ind_l)
+
         # run backtest
-        df = tsf.run_strategy(df, ma_s, ma_l)
+        df = tsf.run_strategy(df)
 
         if ticker not in res_data:
             res_data[ticker] = {}
             pro_data[ticker] = {}
 
         # store processed data and result data
-        label = f"{ticker}_{ma_s}_{ma_l}"
+        label = f"{ticker}_{ind_t}_{ind_s}_{ind_l}"
         pro_data[ticker][label] = df.copy()
         res_data[ticker][label] = {
-            "MA_Short": ma_s,
-            "MA_Long": ma_l,
+            "indicator": ind_t,
+            "MA_Short": ind_s,
+            "MA_Long": ind_l,
             "Return_Market": df["Cumulative_Market"].iloc[-1],
             "Return_Strategy": df["Cumulative_Strategy"].iloc[-1]
         }
-        tsf.plot_res(df, ticker, ma_s, ma_l)
+        tsf.plot_res(df, label)
 
     # exports dataframe for analysis
     tsf.export_dataframe(pro_data)
