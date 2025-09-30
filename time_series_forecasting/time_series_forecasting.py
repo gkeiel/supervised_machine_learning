@@ -1,25 +1,47 @@
-import time_series_forecasting_functions as tspr
+import os
+import time_series_forecasting_functions as tsf
+from datetime import datetime
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main():
-    # number of samples and model order
-    n   = 500
+    # defines start and end time
+    start = "2025-01-01"
+    end   = datetime.now()
+
+    # initialize cache dictionaries
+    raw_data = {}
+    pro_data = {}
+
+    # lists of parameters
+    ticker   = "B3SA3.SA"
+
+    # model order
     n_a = 2
 
-    # obtain time series data
-    data = tspr.time_series(n)    
+    # download time series data
+    df = tsf.download_data(ticker, start, end)
+
+    # clean time series
+    df = tsf.clean_data(df)
+    
+    # prediction from decision tree
+    df, idx = tsf.decision_tree(df)
 
     # prediction from ARIMA model
-    y_pred_ar = tspr.arima_model(data, n, n_a)
+    df = tsf.arima_model(df, n_a, idx)
 
-    # prediction from decision tree
-    y_pred_tree, y_test, split_idx = tspr.decision_tree(data)
+    # exports dataframe for analysis
+    label = f"{ticker}_{n_a}"
+    pro_data[ticker]        = {}
+    pro_data[ticker][label] = df.copy()
+    tsf.export_dataframe(pro_data)
 
     # metrics
-    mse_ar, mse_tree = tspr.metrics(y_pred_ar, y_pred_tree, data['y'], y_test)
+    mse_ar, mse_tree = tsf.metrics(df)
 
     # plot
-    tspr.plot_res(data['y'], data['t'], y_pred_ar, y_pred_tree, mse_ar, mse_tree, split_idx)
+    tsf.plot_res(df, mse_ar, mse_tree, label, idx)
 
 
 if __name__ == "__main__":

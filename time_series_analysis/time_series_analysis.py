@@ -15,8 +15,8 @@ def main():
     pro_data = {}
     res_data = {}
 
-    # import lists of parameters:
-    tickers    = ["PETR4.SA"]
+    # import lists of parameters
+    tickers    = ["B3SA3.SA"]
     indicators = tsf.load_indicators("indicators.txt")
     
     # download data and run backtest
@@ -39,8 +39,8 @@ def main():
         df = tsf.run_strategy(df)
 
         if ticker not in res_data:
-            res_data[ticker] = {}
             pro_data[ticker] = {}
+            res_data[ticker] = {}
 
         # store processed data and result data
         label = f"{ticker}_{ind_t}_{ind_s}_{ind_l}"
