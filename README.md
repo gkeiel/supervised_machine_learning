@@ -1,10 +1,12 @@
 # Supervised machine learning
 
-A repository of algorithms using supervised machine learning. Each code has its own folder, containing codes for time-series analysis and forecasting.
+A repository of algorithms using supervised machine learning. Each code has its own folder, containing codes for time-series analysis/forecasting and computational vision.
 
 The following algorithms are available:
 - [Time series analysis](./time_series_analysis)
 - [Time series forecasting](./time_series_forecasting)
+- [Object detector](./object_detector)
+
 
 ## Time series analysis
 
