@@ -2,6 +2,8 @@ import cv2, time, csv
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
+from queue import Queue
+from threading import Thread
 from datetime import datetime
 
 
@@ -27,7 +29,7 @@ time_last = time.time()
 
 
 def load_model(model_url):
-    # load model MobileNet V2
+    # load MobileNet V2 model
     model = hub.load(model_url)
     return model
 
@@ -44,10 +46,9 @@ def object_detector(model, frame):
 def display_result(frame, result, threshold=0.5):
     # draw bounding boxes and labels
     height, width, _ = frame.shape
-    boxes = result['detection_boxes']
+    boxes   = result['detection_boxes']
     classes = result['detection_classes'].astype(int)
-    scores = result['detection_scores']
-
+    scores  = result['detection_scores']
     object_counts = {}
 
     for i in range(len(scores)):
@@ -83,8 +84,9 @@ def calculate_fps(time_now, time_last):
 
 def panel(frame, height, object_counts):
     global time_last
+    scale = height/480
 
-    panel_width = 250
+    panel_width = int(200*scale)
     panel = np.zeros((height, panel_width, 3), dtype = np.uint8)
 
     # get FPS
@@ -92,23 +94,26 @@ def panel(frame, height, object_counts):
     fps       = calculate_fps(time_now, time_last)
     time_last = time_now
 
+    font_scale = 0.6 * scale
+    thickness  = max(1, int(2 * scale))
+    spacing    = int(30 * scale)
 
     # title
-    cv2.putText(panel, "INFO PANEL", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
+    cv2.putText(panel, "INFO PANEL", (int(10*scale), int(30*scale)), cv2.FONT_HERSHEY_SIMPLEX, 0.8*scale, (0,255,0), thickness)
 
     # FPS
-    cv2.putText(panel, f"FPS: {fps:.1f}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
+    cv2.putText(panel, f"FPS: {fps:.1f}", (int(10*scale), int(70*scale)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255,255,255), max(1,int(scale)))
 
     # counting
     total_objects = sum(object_counts.values())
-    cv2.putText(panel, f"Total objects: {total_objects}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
+    cv2.putText(panel, f"Total objects: {total_objects}", (int(10*scale), int(100*scale)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255,255,255), max(1, int(scale)))
 
     # lista por classe
-    y = 140
+    y = int(140*scale)
     for obj, count in object_counts.items():
-        cv2.putText(panel, f"{obj}: {count}", (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200,200,200), 1)
-       
-    y += 25
+        cv2.putText(panel, f"{obj}: {count}", (int(10*scale), y), cv2.FONT_HERSHEY_SIMPLEX, 0.5*scale, (200,200,200), max(1,int(scale)))
+        y += spacing
+
     frame = np.hstack((frame, panel))
     return frame
 

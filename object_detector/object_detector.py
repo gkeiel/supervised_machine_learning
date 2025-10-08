@@ -17,11 +17,11 @@ while True:
         break
 
     frame_id += 1
-    if frame_id % 5 != 0:
+    if frame_id % 1 != 0:
         continue
 
     # resize frame
-    frame = cv2.resize(frame, (224, 224))
+    frame = cv2.resize(frame, (300, 300))
     
     # object detector
     result = odf.object_detector(model, frame)
