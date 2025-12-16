@@ -28,5 +28,7 @@ An **object-oriented programming (OOP) code for creating and analyzing technical
   </p>
 
 This compact algorithm is mainly used for implementing and testing new technical indicators before inserting them into our more robust tools like **B3 Trading Signals** and **Market Trading Signals**.
+
 https://github.com/gkeiel/b3_trading_signals
+
 https://github.com/gkeiel/market_trading_signals
