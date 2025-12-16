@@ -1,6 +1,6 @@
 # Supervised machine learning
 
-A repository of algorithms using supervised machine learning. Each code has its own folder, containing codes for time-series analysis/forecasting and computational vision.
+A repository of algorithms using supervised machine learning. Each tool has its own folder, containing codes for time-series analysis/forecasting and computational vision.
 
 The following algorithms are available:
 - [Time series analysis](./time_series_analysis)
@@ -10,7 +10,7 @@ The following algorithms are available:
 
 ## Time series analysis
 
-A code for creating and analyzing indicators in financial time series. It downloads market data via API and allows the application of different indicators to determine the best strategies.
+An **object-oriented programming (OOP) code for creating and analyzing technical indicators in financial time series**. It downloads market data via Yahoo Finance API and allows the application of different indicators to choose the best strategies.
 
 - **Backtest with SMA**
   <p align="center">
@@ -26,3 +26,7 @@ A code for creating and analyzing indicators in financial time series. It downlo
   <p align="center">
   <img width="733" height="395" alt="B3SA3 SA_EMA_5_30" src="https://github.com/user-attachments/assets/94cc4b0d-189a-446c-b9be-dabc4612c58c" />
   </p>
+
+This compact algorithm is mainly used for implementing and testing new technical indicators before inserting them into our more robust tools like **B3 Trading Signals** and **Market Trading Signals**.
+https://github.com/gkeiel/b3_trading_signals
+https://github.com/gkeiel/market_trading_signals

@@ -1,6 +1,6 @@
 import os, itertools
-import time_series_analysis_functions as tsf
 from datetime import datetime
+from time_series_analysis_classes import Loader, Indicator, Backtester, Exporter
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -15,22 +15,24 @@ def main():
     res_data = {}
 
     # import lists of parameters
-    tickers    = ["B3SA3.SA"]
-    indicators = tsf.load_indicators("indicators.txt")
+    loader = Loader("tickers.txt", "indicators.txt")
+    tickers    = loader.load_tickers()
+    indicators = loader.load_indicators()
     
     # download data and run backtest
     for ticker, indicator in itertools.product(tickers, indicators):
 
         # download data (only once)
         if ticker not in raw_data:
-            raw_data[ticker] = tsf.download_data(ticker, start, end)
+            raw_data[ticker] = loader.download_data(ticker, start, end)
         df = raw_data[ticker]
 
         # setup indicator
-        df = tsf.setup_indicator(df, indicator)
+        df = Indicator(indicator).setup_indicator(df)
 
         # run backtest
-        df = tsf.run_strategy(df, indicator)
+        backtest = Backtester(df)
+        df = backtest.run_strategy(indicator)
 
         if ticker not in res_data:
             pro_data[ticker] = {}
@@ -49,13 +51,13 @@ def main():
             "Return_Market": df["Cumulative_Market"].iloc[-1],
             "Return_Strategy": df["Cumulative_Strategy"].iloc[-1]
         }
-        tsf.plot_res(df, label)
-
-    # exports dataframe for analysis
-    tsf.export_dataframe(pro_data)
+        backtest.plot(label)
+    
+        # exports dataframe for analysis
+    Exporter.export_dataframe(pro_data)
 
     # exports backtesting results
-    tsf.export_results(res_data)
+    Exporter.export_results(res_data)
 
 
 if __name__ == "__main__":
