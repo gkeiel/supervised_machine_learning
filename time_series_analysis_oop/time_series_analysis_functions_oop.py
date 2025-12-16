@@ -92,5 +92,5 @@ class Backtest:
         plt.title(f"{ticker} - Backtest {ind_t}{ind_s}/{ind_l}")
         plt.legend()
         plt.grid(True)
-        plt.savefig(f"results/backtest_{label}.png", dpi=300, bbox_inches="tight")
+        plt.savefig(f"results/{label}_backtest.png", dpi=300, bbox_inches="tight")
         plt.close()

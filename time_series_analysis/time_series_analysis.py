@@ -1,5 +1,4 @@
-import os
-import itertools
+import os, itertools
 import time_series_analysis_functions as tsf
 from datetime import datetime
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -20,35 +19,33 @@ def main():
     indicators = tsf.load_indicators("indicators.txt")
     
     # download data and run backtest
-    for ticker, (ind_t, ind_s, ind_l) in itertools.product(tickers, indicators):
+    for ticker, indicator in itertools.product(tickers, indicators):
 
         # download data (only once)
         if ticker not in raw_data:
             raw_data[ticker] = tsf.download_data(ticker, start, end)
         df = raw_data[ticker]
 
-        # calculate indicator
-        if ind_t == "SMA":
-            df["Short"], df["Long"] = tsf.sma( df["Close"], ind_s, ind_l)
-        elif ind_t == "EMA":
-            df["Short"], df["Long"] = tsf.ema( df["Close"], ind_s, ind_l)
-        elif ind_t == "WMA":
-            df["Short"], df["Long"] = tsf.wma( df["Close"], ind_s, ind_l)
+        # setup indicator
+        df = tsf.setup_indicator(df, indicator)
 
         # run backtest
-        df = tsf.run_strategy(df)
+        df = tsf.run_strategy(df, indicator)
 
         if ticker not in res_data:
             pro_data[ticker] = {}
             res_data[ticker] = {}
 
         # store processed data and result data
-        label = f"{ticker}_{ind_t}_{ind_s}_{ind_l}"
+        ind_t  = indicator["ind_t"]  # indicator title
+        ind_p  = indicator["ind_p"]  # indicator parameters
+        params = "_".join(str(p) for p in ind_p)
+        label  = f"{ticker}_{ind_t}_{params}"
+        
         pro_data[ticker][label] = df.copy()
         res_data[ticker][label] = {
             "Indicator": ind_t,
-            "MA_Short": ind_s,
-            "MA_Long": ind_l,
+            "Parameters": ind_p,
             "Return_Market": df["Cumulative_Market"].iloc[-1],
             "Return_Strategy": df["Cumulative_Strategy"].iloc[-1]
         }

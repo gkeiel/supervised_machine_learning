@@ -1,9 +1,7 @@
 import os
 import itertools
 from datetime import datetime
-from time_series_analysis_functions_oop import Loader
-from time_series_analysis_functions_oop import Indicator
-from time_series_analysis_functions_oop import Backtest
+from time_series_analysis_functions_oop import Loader, Indicator, Backtest
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -19,7 +17,7 @@ def main():
 
     # import lists of parameters
     loader = Loader("tickers.txt", "indicators.txt")
-    tickers    = ["B3SA3.SA"]
+    tickers    = loader.load_tickers()
     indicators = loader.load_indicators()
     
     # download data and run backtest

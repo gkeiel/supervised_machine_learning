@@ -1,8 +1,8 @@
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib 
+import matplotlib
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 def load_tickers(filepath):
@@ -16,49 +16,95 @@ def load_indicators(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
-                t, s, l = line.strip().split(",")
-                indicators.append((t, int(s), int(l)))
+                parts = [p.strip() for p in line.split(",") if p.strip()]
+                ind_t = parts[0]                        # indicator title
+                ind_p = [int(x) for x in parts[1:]]     # indicator parameters
+                indicators.append({"ind_t":ind_t, "ind_p":ind_p})
     return indicators
 
 
 def download_data(ticker, start, end):
     # collect OHLCVDS data from Yahoo Finance
-    df = yf.download(ticker, start, end, auto_adjust=True)
+    try:
+        df = yf.download(ticker, start, end, auto_adjust=True)
+    except Exception as err:
+        raise RuntimeError("Unexpected error in download_data.") from err
     df.columns = df.columns.droplevel(1)    
     df = df[["Close", "Volume"]]
     return df
 
 
-def sma(series:pd.Series, short:int, long:int) -> tuple[pd.Series, pd.Series]:
+def sma(series:pd.Series, window:int) -> pd.Series:
     # simple moving average (SMA)
-    return (series.rolling(window=short).mean(),
-            series.rolling(window=long).mean())
+    return series.rolling(window=window).mean()
 
 
-def wma(series:pd.Series, short:int, long:int) -> tuple[pd.Series, pd.Series]:
+def wma(series:pd.Series, window:int) -> pd.Series:
     # weighted moving average (WMA)
-    w_s = pd.Series(range(1, short+1), dtype=float)
-    w_l = pd.Series(range(1, long+1), dtype=float)
-    series_s = series.rolling(window=short).apply(lambda x: (x*w_s).sum()/w_s.sum(), raw=True)
-    series_l = series.rolling(window=long).apply(lambda x: (x*w_l).sum()/w_l.sum(), raw=True)
-    return (series_s, series_l)
+    w      = pd.Series(range(1, window+1), dtype=float)
+    return series.rolling(window=window).apply(lambda x: (x*w).sum()/w.sum(), raw=True)
 
 
-def ema(series:pd.Series, short:int, long:int) -> tuple[pd.Series, pd.Series]:
+def ema(series:pd.Series, window:int) -> pd.Series:
     # exponential moving average (EMA)
-    return (series.ewm(span=short, adjust=False).mean(),
-            series.ewm(span=long, adjust=False).mean())
+    return series.ewm(span=window, adjust=False).mean()
 
 
-def run_strategy(df):
+def setup_indicator(df, indicator):
+    """
+    parameters:
+    - df: dataframe with column 'Close'
+    - indicator: dictionary with
+        - ind_t: str with indicator name ("SMA", "WMA", "EMA" or "BB")
+        - ind_p: list with indicator values (10, 20)
+    """
+    df     = df.copy()
+    ind_t  = indicator.get("ind_t", "")
+    params = indicator.get("ind_p", [])
+
+    if ind_t in ["SMA", "WMA", "EMA"]:
+        fn = globals().get(ind_t.lower())
+        # 1 MA
+        if len(params) == 1:
+            short = params[0]
+            df["Short"] = fn(df["Close"], short)
+        # 2 MAs
+        elif len(params) == 2:
+            short, long = params
+            df["Short"] = fn(df["Close"], short)
+            df["Long"]  = fn(df["Close"], long)
+        # 3 MAs
+        elif len(params) == 3:
+            short, medium, long = params
+            df["Short"] = fn(df["Close"], short)
+            df["Mid"]   = fn(df["Close"], medium)
+            df["Long"]  = fn(df["Close"], long)
+        else:
+            raise ValueError(f"Unsupported indicator: {ind_t}.")    
+        return df
+
+
+def run_strategy(df, indicator):
     df = df.copy()
+    ind_t  = indicator["ind_t"]
+    params = indicator["ind_p"]
     
     # generate buy/sell signals
     df["Signal"] = 0
-    df.loc[df["Short"] > df["Long"], "Signal"] = 1              # buy signal  ->  1
-    df.loc[df["Short"] < df["Long"], "Signal"] = -1             # sell signal -> -1
+    if ind_t in ["SMA", "EMA", "WMA"]:
+        if len(params) == 1:
+            # 1 MA crossover
+            df.loc[df["Short"] > df["Close"], "Signal"] = 1         # buy signal
+            df.loc[df["Short"] < df["Close"], "Signal"] = -1        # sell signal
+        elif len(params) == 2:
+            # 2 MAs crossover
+            df.loc[df["Short"] > df["Long"], "Signal"] = 1          # buy signal
+            df.loc[df["Short"] < df["Long"], "Signal"] = -1         # sell signal
+        elif len(params) == 3:
+            # 3 MAs crossover
+            df.loc[(df["Short"] > df["Med"]) & (df["Med"] > df["Long"]), "Signal"] = 1                              # buy signal
+            df.loc[(df["Short"] < df["Med"]) & (df["Med"] < df["Long"]), "Signal"] = -1                             # sell signal
     df["Signal_Length"] = df["Signal"].groupby((df["Signal"] != df["Signal"].shift()).cumsum()).cumcount() +1  # consecutive samples of same signal (signal length)
-    df.loc[df["Signal"] == 0, "Signal_Strength"] = 0                                                           # strength is zero while there is no signal
 
     # simulate execution (backtest)
     df["Position"] = df["Signal"].shift(1)                      # simulate position (using previous sample)
