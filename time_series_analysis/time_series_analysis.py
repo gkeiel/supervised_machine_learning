@@ -53,7 +53,7 @@ def main():
         }
         backtest.plot(label)
     
-        # exports dataframe for analysis
+    # exports dataframe for analysis
     Exporter.export_dataframe(pro_data)
 
     # exports backtesting results
