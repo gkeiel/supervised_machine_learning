@@ -77,7 +77,7 @@ class Indicator:
         return macd_line, signal_line, histogram
 
     @staticmethod
-    def parabolic_sar(high:pd.Series, low:pd.Series, step:float=0.02, max_step:float=0.2) -> pd.Series:
+    def sar(high:pd.Series, low:pd.Series, step:float=0.02, max_step:float=0.2) -> pd.Series:
         # parabolic SAR
         sar = low.copy()
         trend, af = 1, step
@@ -117,7 +117,25 @@ class Indicator:
             elif close.iloc[i] < lower.iloc[i-1]: trend = -1
             st.iloc[i] = lower.iloc[i] if trend == 1 else upper.iloc[i]
         return st
+    
+    @staticmethod
+    def rsi(series:pd.Series, window:int=10) -> pd.Series:
+        # relative strength index (RSI)
+        delta    = series.diff()
+        avg_gain =  delta.clip(lower=0).rolling(window).mean()
+        avg_loss = -delta.clip(upper=0).rolling(window).mean()
+        rsi      = 100 -(100/(1 +avg_gain/avg_loss))
+        return rsi
         
+    @staticmethod
+    def atr(high: pd.Series, low: pd.Series, close: pd.Series, window: int = 14) -> pd.Series:
+        # average true range (ATR)
+        tr1 = high -low
+        tr2 = (high -close.shift()).abs()
+        tr3 = (low  -close.shift()).abs()
+        tr  = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        return tr.rolling(window).mean()
+
     def setup_indicator(self, df):
         df     = df.copy()
         ind_t  = self.indicator.get("ind_t", "")
@@ -148,10 +166,16 @@ class Indicator:
             df["MACD"], df["MACD_Signal"], df["MACD_Histogram"] = self.macd(df["Close"], fast, slow, signal)
         elif ind_t == "SAR":
             step, max_step = params
-            df["SAR"] = self.parabolic_sar(df["High"], df["Low"], step, max_step)            
+            df["SAR"] = self.sar(df["High"], df["Low"], step, max_step)            
         elif ind_t == "ST":
             atr_w, mult = params
             df["Supertrend"] = self.supertrend(df["High"], df["Low"], df["Close"], atr_w, mult)
+        elif ind_t == "RSI":
+            window = int(params[0])
+            df["RSI"] = self.rsi(df["Close"], window)
+        elif ind_t == "ATR":
+            window = int(params[0])
+            df["ATR"] = self.atr(df["High"], df["Low"], df["Close"], window)
         else:
             raise ValueError(f"Unsupported indicator: {ind_t}.")    
         return df
@@ -193,15 +217,23 @@ class Backtester:
         elif ind_t == "ST":
             df.loc[df["Close"] > df["Supertrend"], "Signal"] = 1        # buy signal (Supertrend)
             df.loc[df["Close"] < df["Supertrend"], "Signal"] = -1       # sell signal (Supertrend)
-               
+        elif ind_t == "RSI":
+            df.loc[df["RSI"] < 30, "Signal"] = 1                        # buy signal (RSI)
+            df.loc[df["RSI"] > 70, "Signal"] = -1                       # sell signal (RSI)
+        elif ind_t == "ATR":
+            atr_mean = df["ATR"].rolling(50).mean()
+            df.loc[df["ATR"] >  atr_mean, "Signal"] = 1
+            df.loc[df["ATR"] <= atr_mean, "Signal"] = -1
+                         
         # simulate execution (backtest)
-        df["Position"] = df["Signal"].shift(1)                      # simulate position (using previous sample)
-        df["Return"] = df["Close"].pct_change()                     # asset percentage variation (in relation to previous sample)
-        df["Strategy"] = df["Position"]*df["Return"]                # return of the strategy
+        df["Position"] = df["Signal"].shift(1)                          # simulate position (using previous sample)
+        #df.loc[df["Position"] == -1, "Position"] = 0                   # comment if also desired selling operations
+        df["Return"] = df["Close"].pct_change()                         # asset percentage variation (in relation to previous sample)
+        df["Strategy"] = df["Position"]*df["Return"]                    # return of the strategy
     
         # compare buy & hold vs current strategy
-        df["Cumulative_Market"] = (1 +df["Return"]).cumprod()       # cumulative return buy & hold strategy
-        df["Cumulative_Strategy"] = (1 +df["Strategy"]).cumprod()   # cumulative return current strategy
+        df["Cumulative_Market"] = (1 +df["Return"]).cumprod()           # cumulative return buy & hold strategy
+        df["Cumulative_Strategy"] = (1 +df["Strategy"]).cumprod()       # cumulative return current strategy
         return df
     
     def plot_price(self, axis, ticker):
@@ -220,22 +252,34 @@ class Backtester:
         
     def plot_bb(self, axis, params):
         axis.plot(self.df.index, self.df["BB_Mid"], label=f"BB mean {params[0]}")
-        axis.plot(self.df.index, self.df["BB_Upper"], color='r', label=f"BB std {params[1]}")
-        axis.plot(self.df.index, self.df["BB_Lower"], color='r')
+        axis.plot(self.df.index, self.df["BB_Upper"], color='tab:red', label=f"BB std {params[1]}")
+        axis.plot(self.df.index, self.df["BB_Lower"], color='tab:red')
         
-    def plot_macd(self, axis):
-        axis.plot(self.df.index, self.df["MACD"], label="MACD")
-        axis.plot(self.df.index, self.df["MACD_Signal"], label="MACD_Signal")
+    def plot_macd(self, axis, params):
+        axis.plot(self.df.index, self.df["MACD"], color='tab:orange', label=f"MACD {params[0]}/{params[1]}/{params[2]}")
+        axis.plot(self.df.index, self.df["MACD_Signal"], color='tab:green', label="MACD_Signal")
         axis.bar(self.df.index, self.df["MACD_Histogram"], color='r', label="Histogram", alpha=0.4)
         axis.axhline(0, linewidth=1)
         axis.grid(True)
         
-    def plot_sar(self, axis):
-        axis.scatter(self.df.index, self.df["SAR"], color='orange', s=10, label="Parabolic SAR")
-        
-    def plot_supertrend(self, axis):
-        axis.plot(self.df.index, self.df["Supertrend"], label="Supertrend")
+    def plot_sar(self, axis, params):
+        axis.scatter(self.df.index, self.df["SAR"], color='tab:orange', s=10, label=f"Parabolic SAR {params[0]}/{params[1]}")
+
+    def plot_supertrend(self, axis, params):
+        axis.plot(self.df.index, self.df["Supertrend"], label=f"Supertrend {params[0]}/{params[1]}")
     
+    def plot_rsi(self, axis, params):
+        axis.plot(self.df.index, self.df["RSI"], label=f"RSI {params[0]}")
+        axis.axhline(30, color="tab:red")
+        axis.axhline(70, color="tab:red")
+        axis.set_ylim(0, 100)
+        axis.grid(True)
+
+    def plot_atr(self, axis, params):
+        axis.plot(self.df.index, self.df["ATR"], color='tab:orange', label=f"ATR {params[0]}")
+        axis.set_ylabel("ATR")
+        axis.grid(True)
+
     def plot(self, label):
         ticker, ind_t, *params = label.split("_")
         
@@ -253,22 +297,35 @@ class Backtester:
             axis.legend()
             axis.set_title(f"{ticker} - Price")
         elif ind_t == "MACD":
-            fig, (axis_price, axis_macd) = plt.subplots(2, 1, figsize=(12,8), sharex=True, gridspec_kw={"height_ratios": [3, 1]})
+            fig, (axis_price, axis_macd) = plt.subplots(2, 1, figsize=(12,6), sharex=True, gridspec_kw={"height_ratios": [3, 1]})
             self.plot_price(axis_price, ticker)
             axis_price.set_title(f"{ticker} - Price")
-            self.plot_macd(axis_macd)
+            self.plot_macd(axis_macd, params)
         elif ind_t == "SAR":
             fig, axis = plt.subplots(figsize=(12,6))
             self.plot_price(axis, ticker)
-            self.plot_sar(axis)
+            self.plot_sar(axis, params)
             axis.legend()
             axis.set_title(f"{ticker} - Price")
         elif ind_t == "ST":
             fig, axis = plt.subplots(figsize=(12,6))
             self.plot_price(axis, ticker)
-            self.plot_supertrend(axis)
+            self.plot_supertrend(axis, params)
             axis.legend()
             axis.set_title(f"{ticker} - Price")
+        elif ind_t == "RSI":
+            fig, (axis_price, axis_rsi) = plt.subplots(2, 1, figsize=(12,6), sharex=True, gridspec_kw={"height_ratios": [3, 1]})
+            self.plot_price(axis_price, ticker)
+            axis_price.set_title(f"{ticker} - Price")
+            self.plot_rsi(axis_rsi, params)
+            axis_rsi.legend()
+        elif ind_t == "ATR":
+            fig, (axis_price, axis_atr) = plt.subplots(2, 1, figsize=(12,6), sharex=True, gridspec_kw={"height_ratios": [3, 1]})
+            self.plot_price(axis_price, ticker)
+            axis_price.set_title(f"{ticker} - Price")
+            self.plot_atr(axis_atr, params)
+            axis_atr.legend()
+
         plt.tight_layout()
         plt.savefig(f"data/results/{label}.png", dpi=300, bbox_inches="tight")
         plt.close()
